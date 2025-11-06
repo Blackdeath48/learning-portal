@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  LEARNER
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  role         UserRole      @default(LEARNER)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  enrollments  Enrollment[]
+}
+
+model Course {
+  id             String        @id @default(cuid())
+  title          String
+  description    String
+  category       String?
+  complianceArea String?
+  level          String?       @default("Intermediate")
+  durationMins   Int?
+  tags           String[]      @default([])
+  modules        Module[]
+  enrollments    Enrollment[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}
+
+model Module {
+  id          String  @id @default(cuid())
+  title       String
+  objective   String?
+  course      Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId    String
+  lessons     Lesson[]
+  orderIndex  Int      @default(0)
+}
+
+model Lesson {
+  id         String  @id @default(cuid())
+  title      String
+  content    String
+  module     Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId   String
+  mediaUrl   String?
+  duration   Int?
+  orderIndex Int     @default(0)
+}
+
+model Enrollment {
+  id                 String            @id @default(cuid())
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String
+  course             Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId           String
+  progress           Float             @default(0)
+  completed          Boolean           @default(false)
+  score              Float?
+  totalTimeMinutes   Int               @default(0)
+  lastAccessed       DateTime?         @updatedAt
+  createdAt          DateTime          @default(now())
+  statements         XAPIStatement[]
+  progressSnapshots  ProgressMetric[]
+  attempts           LearningAttempt[]
+
+  @@unique([userId, courseId])
+}
+
+model XAPIStatement {
+  id           String       @id @default(cuid())
+  actor        Json
+  verb         Json
+  object       Json
+  result       Json?
+  context      Json?
+  timestamp    DateTime     @default(now())
+  enrollment   Enrollment?  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollmentId String?
+}
+
+model ProgressMetric {
+  id            String      @id @default(cuid())
+  enrollment    Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollmentId  String
+  progress      Float       @default(0)
+  score         Float?
+  timeSpentMins Int         @default(0)
+  recordedAt    DateTime    @default(now())
+}
+
+model LearningAttempt {
+  id           String      @id @default(cuid())
+  enrollment   Enrollment  @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollmentId String
+  attemptNo    Int         @default(1)
+  startedAt    DateTime    @default(now())
+  completedAt  DateTime?
+  score        Float?
+  timeSpentMins Int        @default(0)
+
+  @@unique([enrollmentId, attemptNo])
+}
