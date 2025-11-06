@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Course {
+  id             String    @id @default(cuid())
+  title          String
+  description    String
+  category       String?
+  complianceArea String?
+  level          String?   @default("Intermediate")
+  durationMins   Int?
+  tags           String[]  @default([])
+  modules        Module[]
+  enrollments    Enrollment[]
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Module {
+  id          String   @id @default(cuid())
+  title       String
+  objective   String?
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId    String
+  lessons     Lesson[]
+  orderIndex  Int      @default(0)
+}
+
+model Lesson {
+  id         String  @id @default(cuid())
+  title      String
+  content    String
+  module     Module  @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  moduleId   String
+  mediaUrl   String?
+  duration   Int?
+  orderIndex Int     @default(0)
+}
+
+model Enrollment {
+  id           String           @id @default(cuid())
+  userId       String
+  course       Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId     String
+  progress     Float            @default(0)
+  completed    Boolean          @default(false)
+  score        Float?
+  statements   XAPIStatement[]
+  lastAccessed DateTime?        @updatedAt
+  createdAt    DateTime         @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model XAPIStatement {
+  id           String   @id @default(cuid())
+  actor        Json
+  verb         Json
+  object       Json
+  result       Json?
+  context      Json?
+  timestamp    DateTime @default(now())
+  enrollment   Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  enrollmentId String?
+}
